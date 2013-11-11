@@ -40,6 +40,19 @@ load() {
 }
 
 run() {
+  local save_vars=()
+
+  while true; do
+    if [ "$1" == "-v" ]; then
+      save_vars[${#save_vars[@]}]="$2"
+      shift 2
+      continue
+    elif [ "$1" == "--" ]; then
+      shift
+    fi
+    break
+  done
+
   local e E T
   
   [[ ! "$-" =~ e ]] || e=1
@@ -52,7 +65,7 @@ run() {
   
   output=$(
     "$@" 2>&1; status=$?
-    bats_capture_vars > "$BATS_VARS"
+    [ "${#save_vars[@]}" -gt 0 ] && bats_capture_vars > "$BATS_VARS"
     exit $status
   )
   
@@ -62,14 +75,8 @@ run() {
   [ -z "$e" ] || set -e
   [ -z "$E" ] || set -E
   [ -z "$T" ] || set -T
-}
 
-set_run_vars() {
-  local var_names=("$@")
-
-  for n in "${var_names[@]}"; do
-    eval "$(grep "$n=" "$BATS_VARS")" 2> /dev/null || true
-  done
+  bats_set_vars "${save_vars[@]}"
 }
 
 setup() {
@@ -101,6 +108,15 @@ bats_test_function() {
 
 bats_capture_vars() {
   comm -3 <(declare | sort) <(declare -f | sort)
+}
+
+bats_set_vars() {
+  local var_names=("$@")
+  local n
+
+  for n in "${var_names[@]}"; do
+    eval "$(grep "$n=" "$BATS_VARS")" 2> /dev/null || true
+  done
 }
 
 bats_capture_stack_trace() {
